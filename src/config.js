@@ -30,3 +30,16 @@ export const REQUEST_TIMEOUT_MS = num('VITE_REQUEST_TIMEOUT_MS', 120_000);
 export const MAX_UPLOAD_BYTES = num('VITE_MAX_UPLOAD_BYTES', 5 * 1024 * 1024);
 export const MAX_RESPONSE_BYTES = num('VITE_MAX_RESPONSE_BYTES', 20 * 1024 * 1024);
 export const ACCEPTED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+
+const rawSupabaseUrl = requireEnv('VITE_SUPABASE_URL');
+let parsedSupabase;
+try {
+  parsedSupabase = new URL(rawSupabaseUrl);
+} catch {
+  throw new Error(`VITE_SUPABASE_URL is not a valid URL: ${rawSupabaseUrl}`);
+}
+if (parsedSupabase.protocol !== 'https:') {
+  throw new Error(`VITE_SUPABASE_URL must use https, got ${parsedSupabase.protocol}`);
+}
+export const SUPABASE_URL = parsedSupabase.toString().replace(/\/$/, '');
+export const SUPABASE_PUBLISHABLE_KEY = requireEnv('VITE_SUPABASE_PUBLISHABLE_KEY');

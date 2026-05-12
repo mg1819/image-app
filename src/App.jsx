@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import UploadCard from './components/UploadCard.jsx';
+import AuthScreen from './components/AuthScreen.jsx';
+import { useAuth } from './lib/useAuth.js';
+import { supabase } from './lib/supabase.js';
 import {
   WEBHOOK_URL,
   REQUEST_TIMEOUT_MS,
@@ -8,6 +11,7 @@ import {
 } from './config.js';
 
 export default function App() {
+  const { session, loading: authLoading } = useAuth();
   const [image1, setImage1] = useState(null);
   const [image2, setImage2] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -79,9 +83,38 @@ export default function App() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <svg className="h-8 w-8 animate-spin text-indigo-300" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="4" />
+          <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen />;
+  }
+
+  const displayName = session.user?.user_metadata?.name || session.user?.email || '';
+
   return (
     <div className="min-h-screen w-full px-4 py-10 sm:px-8">
       <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2 backdrop-blur">
+          <span className="text-sm text-slate-300">
+            Signed in as <span className="font-medium text-white">{displayName}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:bg-white/10"
+          >
+            Sign out
+          </button>
+        </div>
         <header className="mb-10 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
