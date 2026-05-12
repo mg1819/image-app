@@ -1,7 +1,8 @@
 # AI Virtual Try-On
 
 Single-page web app that sends two images (a person and a garment) to a local n8n
-webhook and renders the generated try-on image returned as a binary blob.
+webhook and renders the generated try-on image returned as a binary blob. Access
+is gated behind email/password auth backed by Supabase.
 
 ![flow](https://img.shields.io/badge/POST-multipart%2Fform--data-6366f1) ![stack](https://img.shields.io/badge/React%2018-Vite%208-Tailwind%203-0ea5e9)
 
@@ -18,6 +19,9 @@ The n8n workflow at `VITE_WEBHOOK_URL` must be **Active** (production URL — th
 
 ## How it works
 
+0. Anonymous visitors see a sign-in / sign-up screen. Sign-up captures name,
+   email, password; Supabase emails a confirmation link that the user must
+   click before logging in. The name is stored in `auth.users.user_metadata`.
 1. User drops a person image into Slot 1 and a garment image into Slot 2.
 2. Each upload is validated client-side: MIME allowlist, max-size, **magic-byte
    sniff** to reject files whose extension/MIME doesn't match their actual bytes.
@@ -37,6 +41,8 @@ throw immediately so a misconfigured deployment never silently runs.
 | `VITE_REQUEST_TIMEOUT_MS` | `120000` | Aborts the fetch via `AbortController` if n8n hangs |
 | `VITE_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | Per-file upload cap |
 | `VITE_MAX_RESPONSE_BYTES` | `20971520` (20 MB) | Cap on the returned blob |
+| `VITE_SUPABASE_URL` | _required_ | Supabase project URL (`https://<ref>.supabase.co`) |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | _required_ | Supabase publishable / anon key (browser-safe) |
 
 > **Vite secrets warning.** Any `VITE_*` var is inlined into the client bundle
 > and visible to anyone who loads the page. The webhook URL is fine here (it's
@@ -55,13 +61,33 @@ image-app/
 └─ src/
    ├─ main.jsx
    ├─ index.css            # Tailwind + dark gradient bg
-   ├─ App.jsx              # state, fetch, result rendering
+   ├─ App.jsx              # auth gate + state, fetch, result rendering
    ├─ config.js            # env validation, exported constants
    ├─ lib/
-   │  └─ sniff.js          # magic-byte image type check
+   │  ├─ sniff.js          # magic-byte image type check
+   │  ├─ supabase.js       # supabase-js client singleton
+   │  └─ useAuth.js        # session + loading hook
    └─ components/
-      └─ UploadCard.jsx    # one upload slot (drag-drop, preview, validation)
+      ├─ UploadCard.jsx    # one upload slot (drag-drop, preview, validation)
+      └─ AuthScreen.jsx    # sign-in / sign-up tabs
 ```
+
+## Auth
+
+Supabase email/password. No `profiles` table — name lives in `user_metadata`
+(passed via `signUp({ options: { data: { name } } })`).
+
+Required Supabase dashboard setup:
+
+- **Authentication → Providers → Email**: enabled, "Confirm email" ON.
+- **Authentication → URL Configuration**:
+  - Site URL: production app URL (e.g. your Vercel domain).
+  - Redirect URLs: add `http://localhost:5173` (and `5174`/`5175` if dev
+    server falls back), plus the Vercel preview URL pattern.
+
+Use the **publishable** key (`sb_publishable_...` or legacy `anon`) for
+`VITE_SUPABASE_PUBLISHABLE_KEY`. **Never** put the `service_role` or
+`sb_secret_...` key in any `VITE_*` var — it bypasses RLS.
 
 ## Security notes
 
@@ -86,7 +112,14 @@ image-app/
 - **"Request timed out."** Bump `VITE_REQUEST_TIMEOUT_MS` if the model is slow,
   or check the n8n execution log.
 - **Blank page on load.** Open DevTools console — a missing/invalid env var
-  throws at startup with a specific message.
+  throws at startup with a specific message. Most common after the auth
+  change: `VITE_SUPABASE_URL` or `VITE_SUPABASE_PUBLISHABLE_KEY` not set.
+- **Confirmation email link goes nowhere / "redirect not allowed".** Add
+  the dev origin (e.g. `http://localhost:5175`) to Supabase Authentication →
+  URL Configuration → Redirect URLs.
+- **"Please confirm your email first."** Check inbox/spam for the Supabase
+  confirmation link, or manually confirm the user in the Supabase dashboard
+  (Authentication → Users → row → "Confirm email").
 
 ## Scripts
 
