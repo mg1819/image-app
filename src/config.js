@@ -43,3 +43,16 @@ if (parsedSupabase.protocol !== 'https:') {
 }
 export const SUPABASE_URL = parsedSupabase.toString().replace(/\/$/, '');
 export const SUPABASE_PUBLISHABLE_KEY = requireEnv('VITE_SUPABASE_PUBLISHABLE_KEY');
+
+const rawPaymentLink = requireEnv('VITE_STRIPE_PAYMENT_LINK');
+let parsedPaymentLink;
+try {
+  parsedPaymentLink = new URL(rawPaymentLink);
+} catch {
+  throw new Error(`VITE_STRIPE_PAYMENT_LINK is not a valid URL: ${rawPaymentLink}`);
+}
+if (parsedPaymentLink.protocol !== 'https:') {
+  throw new Error(`VITE_STRIPE_PAYMENT_LINK must use https, got ${parsedPaymentLink.protocol}`);
+}
+export const STRIPE_PAYMENT_LINK = parsedPaymentLink.toString();
+export const PRICE_LABEL = '$9.99';

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import UploadCard from './components/UploadCard.jsx';
 import AuthScreen from './components/AuthScreen.jsx';
+import Paywall from './components/Paywall.jsx';
 import { useAuth } from './lib/useAuth.js';
+import { useProfile } from './lib/useProfile.js';
 import { supabase } from './lib/supabase.js';
 import {
   WEBHOOK_URL,
@@ -12,6 +14,7 @@ import {
 
 export default function App() {
   const { session, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading, refresh: refreshProfile } = useProfile(session);
   const [image1, setImage1] = useState(null);
   const [image2, setImage2] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -83,7 +86,7 @@ export default function App() {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || (session && profileLoading)) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <svg className="h-8 w-8 animate-spin text-indigo-300" viewBox="0 0 24 24" fill="none">
@@ -96,6 +99,10 @@ export default function App() {
 
   if (!session) {
     return <AuthScreen />;
+  }
+
+  if (!profile?.has_paid) {
+    return <Paywall session={session} refresh={refreshProfile} />;
   }
 
   const displayName = session.user?.user_metadata?.name || session.user?.email || '';
